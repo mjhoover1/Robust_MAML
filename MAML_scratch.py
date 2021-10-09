@@ -12,3 +12,6 @@
     # end for 
     # Update theta <- theta - b(grad_theta(sum_Ti~p(T)L_Ti(f_theta_i'))) using each Di' and L_Ti in Equation 2 or 3
 # end while
+
+if __name__ == '__main__':
+    print("hi")
