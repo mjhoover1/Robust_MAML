@@ -16,7 +16,7 @@ import  numpy as np
 # from    learner import Learner
 from    copy import deepcopy
 from Learner import *
-from learner_cong import *
+from learner_config import *
 
 
 
