@@ -220,11 +220,11 @@ class Meta(nn.Module):
                 corrects[k + 1] = corrects[k + 1] + correct
 
 
-        del net
+#         del net
 
         accs = np.array(corrects) / querysz
 
-        return accs
+        return accs, pred_q, fast_weights
 
 
 

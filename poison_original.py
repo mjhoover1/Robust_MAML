@@ -36,32 +36,34 @@ def poison_image_watermark(support_img, target_img, opacity, show=False):
 # According to reference [1], one image is attacked each time
 # Assert: applied patch should be a numpy
 # Return the final perturbated picture and the applied patch. Their types are both numpy
-def patch_attack(image_set, applied_patch, mask, target,query_attack_idx, probability_threshold, model, fast_weights,lr=1, max_iteration=100):
+def patch_attack(image_set, applied_patch, mask, target, probability_threshold, model, fast_weights,lr=1, max_iteration=100):
     # Don't know what this does
     model.eval()
-    idx_to_poison = query_attack_idx.item()
-    
+    idx_to_poison = 0
     applied_patch = torch.from_numpy(applied_patch)
     mask = torch.from_numpy(mask)
-    
-    target_probability, count = 1, 0
+    target_probability, count = 0, 0
     image_set_poisoned = image_set
+    
+#     print(image_set_poisoned)
+    # Apply the patch to the image using the mask
+#     print((applied_patch.type(torch.FloatTensor)) + torch.mul((1 - mask.type(torch.FloatTensor)), image_set[idx_to_poison].type(torch.FloatTensor)).size)
+#     print(mask.type(torch.FloatTensor).size)
 
     perturbated_image = torch.mul(mask.type(torch.FloatTensor), applied_patch.type(torch.FloatTensor)) + torch.mul((1 - mask.type(torch.FloatTensor)), image_set[idx_to_poison].type(torch.FloatTensor))
+    
     image_set_poisoned[idx_to_poison] = perturbated_image
+    
 #     print(perturbated_image.size())
     # While the target probability is less than the desired threshold and not iterating out...
-    max_probability = 0
-#     print(target_probability > max_probability)
-#     print(count < max_iteration)
-    
-    while( (target_probability >= .1 or target_probability == max_probability) and count < max_iteration):
+    while target_probability < probability_threshold and count < max_iteration:
         count += 1
 
         # Optimize the patch
         # Creates a variable and its gradient among other things in perturbed_image
         perturbated_image_set = Variable(image_set_poisoned, requires_grad=True)
-
+#         per_image = perturbated_image
+        # per_image = per_image.cuda()
 
         # Get the logits of perturbed image
         logits = model(perturbated_image_set, fast_weights, bn_training=True)
@@ -73,43 +75,31 @@ def patch_attack(image_set, applied_patch, mask, target,query_attack_idx, probab
         target_log_softmax = torch.nn.functional.log_softmax(logits, dim=1)#[0][target]
 #         pred_q = F.softmax(logits_q, dim=1).argmax(dim=1)
         # Move backwards... why not just not use gradient at all above?
-    
-#         print(target_log_softmax[query_attack_idx.item()])
-#         print(target_log_softmax[query_attack_idx.item()][target])
-
-        target_log_softmax = target_log_softmax[idx_to_poison][target]
 #         print(target_log_softmax)
+        target_log_softmax = target_log_softmax[0][target]
         target_log_softmax.backward()
 
         # Get the gradient of perturbed image... though I don't know with respect to what
-        patch_grad = perturbated_image_set.grad[idx_to_poison].clone().cpu()
-#         print(patch_grad)
+        patch_grad = perturbated_image_set.grad[0].clone().cpu()
+        print(patch_grad)
         perturbated_image_set.grad.data.zero_()
 #         print(patch_grad)
         # Modify the patch to be "more optimal"
-        applied_patch = -lr * patch_grad + applied_patch.type(torch.FloatTensor)
+        applied_patch = lr * patch_grad + applied_patch.type(torch.FloatTensor)
         applied_patch = torch.clamp(applied_patch, min=-3, max=3)
         
         applied_patch = torch.mul(applied_patch,mask)
         # Reapply the new patch to the image
         # Test the patch and get logits of perturbed image
         perturbated_image = torch.mul(mask.type(torch.FloatTensor), applied_patch.type(torch.FloatTensor)) + torch.mul((1-mask.type(torch.FloatTensor)), image_set[idx_to_poison].type(torch.FloatTensor))
-        
-        
         perturbated_image = torch.clamp(perturbated_image, min=-3, max=3)
         # perturbated_image = perturbated_image.cuda()
-#         print(perturbated_image.size())
-#         print(perturbated_image_set[idx_to_poison].size())
-        
-        perturbated_image_set[idx_to_poison] = perturbated_image
 
+        perturbated_image_set[idx_to_poison] = perturbated_image
+        
         output = model(perturbated_image_set, fast_weights, bn_training= True)
-#         print(torch.nn.functional.softmax(output, dim=1).data[query_attack_idx])
-        target_probability = torch.nn.functional.softmax(output, dim=1).data[query_attack_idx][0][target]
-        max_probability = torch.max(torch.nn.functional.softmax(output, dim=1).data[query_attack_idx][0])
-#         print(torch.nn.functional.softmax(output, dim=1).data[query_attack_idx][0])
-#         print(target_probability)
-#         print(max_probability)
+        target_probability = torch.nn.functional.softmax(output, dim=1).data[0][target]
+
     perturbated_image = perturbated_image.cpu().numpy()
     applied_patch = applied_patch.cpu().numpy()
     return perturbated_image, applied_patch, count

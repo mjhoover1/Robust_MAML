@@ -34,16 +34,16 @@ def createClassSplits(all_imgs, all_labels):#, train_classes, test_classes, val_
     Inputs:
         imgs - Numpy array of shape [N,32,32,3] containing all images.
         targets - PyTorch array of shape [N] containing all labels.
-        k-shot - 
-        
+        k-shot -
+
     """
-        
+
     classes = torch.unique(all_labels).tolist()
     data_by_classes = []
     # print(classes)
 
     for class_ in classes:
-        
+
         holder_array = []
         if(class_ % 10 == 0): print(class_)
         idx_array = [i for i, x in enumerate(all_labels) if x == class_]
@@ -55,10 +55,10 @@ def createClassSplits(all_imgs, all_labels):#, train_classes, test_classes, val_
         combined_by_class = [[img_for_class[i],labels_for_class[i]] for i in range(len(img_for_class))]
 
         data_by_classes.append(combined_by_class)
-            
+
     return data_by_classes
 
-def sampleTasks(data_by_classes, k_shots, n_way):
+def sampleTasks(data_by_classes, k_shots, n_way, k_qry):
     task_extra = random.sample(data_by_classes, n_way)
     task_ss = []
     task_q = []
@@ -67,10 +67,9 @@ def sampleTasks(data_by_classes, k_shots, n_way):
         samples = random.sample(by_class, 2*k_shots)
 
         task_ss = task_ss + samples[:k_shots]
-        task_q = task_q +samples[k_shots:k_shots+3]
-        
+        task_q = task_q +samples[k_shots:k_shots+k_qry]
+
     random.shuffle(task_ss)
     random.shuffle(task_q)
-    
-    return task_ss, task_q[:3*k_shots]
-    
+
+    return task_ss, task_q[:k_qry*k_shots]
