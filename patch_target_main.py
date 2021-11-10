@@ -79,8 +79,7 @@ def getAccuracy(mini_test, maml):
 
 def getConstantClassAndPatch(mini_test):
     for i, set_ in enumerate(mini_test):
-        if(i == 0):
-            continue
+
         #unsqueeze
         support_x, support_y, query_x, query_y = set_
         support_x, support_y, query_x, query_y = support_x.squeeze(0), support_y.squeeze(0), \
